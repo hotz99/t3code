@@ -51,10 +51,14 @@ function snapshotRevision(id: string, snapshot: TmsEntitySnapshot): string {
   return `d-${fnv1a(JSON.stringify([id, snapshot.level, snapshot.wording, snapshot.status, snapshot.cause]))}`;
 }
 
+export type TmsEntityType = TmsEntityContextRecord["entity"]["type"];
+
+/** A comment's subject: the decision, as the tree or the ontology (by its role there) shows it. */
 export function decisionCommentRecord(
   decision: TmsDecision,
   levels: TmsLevels,
   contextId: ComposerContextId,
+  type: TmsEntityType = "decision",
 ): TmsEntityContextRecord {
   const snapshot = decisionSnapshot(decision, levels);
   return {
@@ -62,7 +66,7 @@ export function decisionCommentRecord(
     kind: "tms-entity",
     contextId,
     label: decision.id.slice(0, 200),
-    entity: { type: "decision", id: decision.id },
+    entity: { type, id: decision.id },
     snapshot,
     revision: snapshotRevision(decision.id, snapshot),
   };

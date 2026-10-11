@@ -20,8 +20,18 @@ const FILLS = [
   "fill-emerald-600 dark:fill-emerald-400",
 ] as const;
 
+const STROKES = [
+  "stroke-amber-600 dark:stroke-amber-400",
+  "stroke-sky-600 dark:stroke-sky-400",
+  "stroke-violet-600 dark:stroke-violet-400",
+  "stroke-emerald-600 dark:stroke-emerald-400",
+] as const;
+
 export const levelFill = (levels: TmsLevels, level: string) =>
   FILLS[levelOf(levels, level).rank % FILLS.length];
+
+export const levelStroke = (levels: TmsLevels, level: string) =>
+  STROKES[levelOf(levels, level).rank % STROKES.length];
 
 /** The id without its project prefix (`tms:R1` → `R1`). */
 export const shortIdOf = (id: string) => id.slice(id.indexOf(":") + 1);

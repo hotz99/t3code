@@ -108,6 +108,17 @@ describe("decisionCommentRecord", () => {
     ).not.toBe(r19.revision);
   });
 
+  it("names an ontology entity by its role there", () => {
+    const relationship = decisionCommentRecord(
+      decision("tms:C12"),
+      LEVELS,
+      ctx("c"),
+      "relationship",
+    );
+    expect(relationship.entity).toEqual({ type: "relationship", id: "tms:C12" });
+    expect(decodeRecord(relationship)).toEqual(relationship);
+  });
+
   it("names how a decision ended or why it does not stand yet", () => {
     const status = (fields: Partial<TmsDecision>) =>
       decisionCommentRecord(decision("tms:R1", fields), LEVELS, ctx("c")).snapshot.status;

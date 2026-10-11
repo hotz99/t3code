@@ -29,6 +29,7 @@ import {
   type CommentDelivery,
   type SnapshotField,
   type TmsComment,
+  type TmsEntityType,
 } from "./tmsCommentModel";
 
 type SendMode = "queue" | "steer";
@@ -136,6 +137,8 @@ export function useTmsCommentSender(
 /** The comment input under a decision: queue by default, interrupt only when asked. */
 export function TmsCommentBox(props: {
   decision: TmsDecision;
+  /** What the comment is on: the decision, or the role it has in the ontology. */
+  entityType: TmsEntityType;
   levels: TmsLevels;
   sender: TmsCommentSender | null;
 }) {
@@ -154,6 +157,7 @@ export function TmsCommentBox(props: {
       decision,
       props.levels,
       toComposerContextId(`tms-${randomUUID()}`),
+      props.entityType,
     );
     sender.send(record, text, mode);
     setText("");
@@ -314,7 +318,7 @@ export function TmsThenVsNow(props: {
 export function TmsCommentList(props: {
   sender: TmsCommentSender;
   live: CausalIndex;
-  onGo: (id: string) => void;
+  onGo: (entity: TmsComment["record"]["entity"]) => void;
 }) {
   const { comments } = props.sender;
   if (comments.length === 0) return null;
@@ -330,10 +334,11 @@ export function TmsCommentList(props: {
               <Badge
                 variant="outline"
                 size="sm"
-                render={
-                  <button type="button" onClick={() => props.onGo(comment.record.entity.id)} />
-                }
+                render={<button type="button" onClick={() => props.onGo(comment.record.entity)} />}
               >
+                {comment.record.entity.type === "decision" ? null : (
+                  <span>{comment.record.entity.type}</span>
+                )}
                 <span className="font-mono">{comment.record.entity.id}</span>
               </Badge>
               <DeliveryBadge delivery={comment.delivery} />

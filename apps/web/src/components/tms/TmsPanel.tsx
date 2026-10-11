@@ -20,13 +20,17 @@ import { useEnvironmentQuery } from "~/state/query";
 import { tmsEnvironment } from "~/state/tms";
 
 import { chainOf, indexTree, layoutCausal, outlineRows } from "./causalTree";
+import { kindCounts, layoutOntology, roleOf, unkindedOf } from "./ontologyLayout";
 import { TmsCausalGraph } from "./TmsCausalGraph";
 import { TmsCommentBox, TmsCommentList, useTmsCommentSender } from "./TmsComments";
 import { TmsInspector } from "./TmsInspector";
 import { LevelChip } from "./TmsLevel";
+import { TmsOntologyGraph } from "./TmsOntologyGraph";
+import { TmsOntologyEmpty, TmsOntologyRelations } from "./TmsOntologyInspector";
 import { TmsDecisionRow, TmsOutline } from "./TmsOutline";
 
 type TreeMode = "graph" | "outline";
+type View = "tree" | "ontology";
 
 function TmsNotice(props: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
@@ -119,6 +123,7 @@ function TmsWorkbench(props: {
 }) {
   const { tree, live } = props;
   const sender = useTmsCommentSender(props.environmentId, props.threadId);
+  const [view, setView] = useState<View>("tree");
   const [mode, setMode] = useState<TreeMode>("graph");
   // Null until the user picks: the selected change's entry is selected by default.
   const [selection, setSelection] = useState<{ readonly id: string | null } | null>(null);
@@ -130,6 +135,8 @@ function TmsWorkbench(props: {
   const index = useMemo(() => indexTree(tree), [tree]);
   const layout = useMemo(() => layoutCausal(index, collapsed), [index, collapsed]);
   const rows = useMemo(() => outlineRows(index, collapsed), [index, collapsed]);
+  const ontology = useMemo(() => layoutOntology(tree.quiver), [tree.quiver]);
+  const unkinded = useMemo(() => unkindedOf(tree, ontology), [tree, ontology]);
   const selectedId = selection === null ? live.entry : selection.id;
 
   const select = useCallback((id: string | null) => setSelection({ id }), []);
@@ -156,17 +163,28 @@ function TmsWorkbench(props: {
     },
     [index],
   );
+  const goEntity = useCallback(
+    (entity: { readonly type: string; readonly id: string }) => {
+      setView(entity.type === "decision" ? "tree" : "ontology");
+      go(entity.id);
+    },
+    [go],
+  );
 
   useEffect(() => {
-    if (selectedId === null) return;
+    if (selectedId === null || view !== "tree") return;
     scrollRef.current
       ?.querySelector(`[data-tms-id="${CSS.escape(selectedId)}"]`)
       ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [selectedId]);
+  }, [selectedId, view]);
 
   const hoveringEnded = hoveredId !== null && tree.ended.some((entry) => entry.id === hoveredId);
   const hovered = hoveredId === null ? undefined : index.byId.get(hoveredId);
   const selectedDecision = selectedId === null ? undefined : index.byId.get(selectedId);
+  const selectedType =
+    view === "ontology" && selectedId !== null
+      ? (roleOf(ontology, selectedId) ?? "decision")
+      : "decision";
 
   const header = (
     <>
@@ -195,22 +213,37 @@ function TmsWorkbench(props: {
         </span>
       </TmsTitle>
       <ToggleGroup
-        aria-label="Tree layout"
+        aria-label="View"
         className="shrink-0"
         variant="segmented"
-        value={[mode]}
+        value={[view]}
         onValueChange={(value) => {
           const next = value[0];
-          if (next === "graph" || next === "outline") setMode(next);
+          if (next === "tree" || next === "ontology") setView(next);
         }}
       >
-        <Toggle aria-label="Graph" value="graph">
-          <NetworkIcon className="size-3.5" />
-        </Toggle>
-        <Toggle aria-label="Outline" value="outline">
-          <ListTreeIcon className="size-3.5" />
-        </Toggle>
+        <Toggle value="tree">Tree</Toggle>
+        <Toggle value="ontology">Ontology</Toggle>
       </ToggleGroup>
+      {view === "tree" ? (
+        <ToggleGroup
+          aria-label="Tree layout"
+          className="shrink-0"
+          variant="segmented"
+          value={[mode]}
+          onValueChange={(value) => {
+            const next = value[0];
+            if (next === "graph" || next === "outline") setMode(next);
+          }}
+        >
+          <Toggle aria-label="Graph" value="graph">
+            <NetworkIcon className="size-3.5" />
+          </Toggle>
+          <Toggle aria-label="Outline" value="outline">
+            <ListTreeIcon className="size-3.5" />
+          </Toggle>
+        </ToggleGroup>
+      ) : null}
     </>
   );
 
@@ -224,6 +257,12 @@ function TmsWorkbench(props: {
             <span className="shrink-0 font-mono">{hovered.id}</span>
             <span className="truncate text-foreground">{hovered.wording}</span>
           </span>
+        ) : view === "ontology" ? (
+          kindCounts(tree).map(({ kind, count }) => (
+            <span key={kind}>
+              {count} {kind}
+            </span>
+          ))
         ) : (
           tree.vocabulary.levels.map(({ level }) => (
             <span key={level} className="flex items-center gap-1">
@@ -232,14 +271,35 @@ function TmsWorkbench(props: {
             </span>
           ))
         )}
-        <label className="ms-auto flex cursor-pointer items-center gap-1.5">
-          <Switch size="sm" checked={showEnded} onCheckedChange={setShowEnded} />
-          Show {tree.ended.length} ended
-        </label>
+        {view === "tree" ? (
+          <label className="ms-auto flex cursor-pointer items-center gap-1.5">
+            <Switch size="sm" checked={showEnded} onCheckedChange={setShowEnded} />
+            Show {tree.ended.length} ended
+          </label>
+        ) : null}
       </div>
       <div className="@container/tms flex min-h-0 flex-1 flex-col @3xl/tms:flex-row">
-        <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-auto">
-          {tree.nodes.length === 0 ? (
+        <div
+          ref={scrollRef}
+          className={cn(
+            "min-h-0 min-w-0 flex-1",
+            view === "ontology" ? "overflow-hidden" : "overflow-auto",
+          )}
+        >
+          {view === "ontology" ? (
+            ontology.boxes.length === 0 ? (
+              <p className="p-3 text-muted-foreground text-xs">The ontology has no things yet.</p>
+            ) : (
+              <TmsOntologyGraph
+                index={index}
+                layout={ontology}
+                selectedId={selectedId}
+                hoveredId={hoveredId}
+                onSelect={select}
+                onHover={setHoveredId}
+              />
+            )
+          ) : tree.nodes.length === 0 ? (
             <p className="p-3 text-muted-foreground text-xs">The tree has no standing decisions.</p>
           ) : mode === "graph" ? (
             <TmsCausalGraph
@@ -262,7 +322,7 @@ function TmsWorkbench(props: {
               onHover={setHoveredId}
             />
           )}
-          {showEnded && tree.ended.length > 0 ? (
+          {view === "tree" && showEnded && tree.ended.length > 0 ? (
             <div role="tree" aria-label="Ended decisions" className="flex flex-col p-1">
               <h3 className="px-2 pt-2 pb-1 font-medium text-2xs text-muted-foreground uppercase tracking-wide">
                 Ended
@@ -286,11 +346,29 @@ function TmsWorkbench(props: {
           aria-live="polite"
           className="max-h-[45%] shrink-0 overflow-y-auto border-t border-border/60 @3xl/tms:max-h-none @3xl/tms:w-80 @3xl/tms:border-t-0 @3xl/tms:border-l"
         >
-          <TmsInspector index={index} id={selectedId} onGo={go} onHover={setHoveredId} />
-          {selectedDecision ? (
-            <TmsCommentBox decision={selectedDecision} levels={index.levels} sender={sender} />
+          {view === "ontology" && !selectedDecision ? (
+            <TmsOntologyEmpty unkinded={unkinded} index={index} onGo={go} onHover={setHoveredId} />
+          ) : (
+            <TmsInspector index={index} id={selectedId} onGo={go} onHover={setHoveredId} />
+          )}
+          {view === "ontology" && selectedId !== null ? (
+            <TmsOntologyRelations
+              index={index}
+              layout={ontology}
+              id={selectedId}
+              onGo={go}
+              onHover={setHoveredId}
+            />
           ) : null}
-          {sender ? <TmsCommentList sender={sender} live={index} onGo={go} /> : null}
+          {selectedDecision ? (
+            <TmsCommentBox
+              decision={selectedDecision}
+              entityType={selectedType}
+              levels={index.levels}
+              sender={sender}
+            />
+          ) : null}
+          {sender ? <TmsCommentList sender={sender} live={index} onGo={goEntity} /> : null}
         </aside>
       </div>
     </DiffPanelShell>

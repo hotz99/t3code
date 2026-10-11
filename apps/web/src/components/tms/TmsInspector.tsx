@@ -5,7 +5,7 @@ import { Badge } from "~/components/ui/badge";
 import { currentIdOf, endingOf, type CausalIndex } from "./causalTree";
 import { LevelChip, StatusBadge } from "./TmsLevel";
 
-function Section(props: { label: string; children: ReactNode }) {
+export function Section(props: { label: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-1">
       <h3 className="font-medium text-2xs text-muted-foreground uppercase tracking-wide">
@@ -17,7 +17,7 @@ function Section(props: { label: string; children: ReactNode }) {
 }
 
 /** A decision id that selects it; hovering it dims everything else in the tree. */
-function DecisionRef(props: {
+export function DecisionRef(props: {
   id: string;
   known: boolean;
   onGo: (id: string) => void;
