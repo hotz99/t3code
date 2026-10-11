@@ -21,6 +21,7 @@ import { tmsEnvironment } from "~/state/tms";
 
 import { chainOf, indexTree, layoutCausal, outlineRows } from "./causalTree";
 import { TmsCausalGraph } from "./TmsCausalGraph";
+import { TmsCommentBox, TmsCommentList, useTmsCommentSender } from "./TmsComments";
 import { TmsInspector } from "./TmsInspector";
 import { LEVELS, LevelChip } from "./TmsLevel";
 import { TmsDecisionRow, TmsOutline } from "./TmsOutline";
@@ -91,7 +92,14 @@ export function TmsPanel(props: {
       </DiffPanelShell>
     );
   }
-  return <TmsWorkbench tree={state.tree} live={state.live} />;
+  return (
+    <TmsWorkbench
+      tree={state.tree}
+      live={state.live}
+      environmentId={props.environmentId}
+      threadId={props.threadId}
+    />
+  );
 }
 
 function TmsTitle(props: { children?: ReactNode }) {
@@ -103,8 +111,14 @@ function TmsTitle(props: { children?: ReactNode }) {
   );
 }
 
-function TmsWorkbench(props: { tree: TmsTree; live: TmsLive }) {
+function TmsWorkbench(props: {
+  tree: TmsTree;
+  live: TmsLive;
+  environmentId: EnvironmentId;
+  threadId: ThreadId | null;
+}) {
   const { tree, live } = props;
+  const sender = useTmsCommentSender(props.environmentId, props.threadId);
   const [mode, setMode] = useState<TreeMode>("graph");
   // Null until the user picks: the selected change's entry is selected by default.
   const [selection, setSelection] = useState<{ readonly id: string | null } | null>(null);
@@ -152,6 +166,7 @@ function TmsWorkbench(props: { tree: TmsTree; live: TmsLive }) {
 
   const hoveringEnded = hoveredId !== null && tree.ended.some((entry) => entry.id === hoveredId);
   const hovered = hoveredId === null ? undefined : index.byId.get(hoveredId);
+  const selectedDecision = selectedId === null ? undefined : index.byId.get(selectedId);
 
   const header = (
     <>
@@ -270,6 +285,8 @@ function TmsWorkbench(props: { tree: TmsTree; live: TmsLive }) {
           className="max-h-[45%] shrink-0 overflow-y-auto border-t border-border/60 @3xl/tms:max-h-none @3xl/tms:w-80 @3xl/tms:border-t-0 @3xl/tms:border-l"
         >
           <TmsInspector index={index} id={selectedId} onGo={go} onHover={setHoveredId} />
+          {selectedDecision ? <TmsCommentBox decision={selectedDecision} sender={sender} /> : null}
+          {sender ? <TmsCommentList sender={sender} live={index.byId} onGo={go} /> : null}
         </aside>
       </div>
     </DiffPanelShell>

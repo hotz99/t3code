@@ -122,6 +122,7 @@ import remarkGfm from "remark-gfm";
 import type { Root, RootContent } from "mdast";
 import { T3Wordmark } from "../T3Wordmark";
 import { ThreadContextChip } from "../ThreadContextChip";
+import { TmsEntityChip } from "../tms/TmsEntityChip";
 import {
   BotIcon,
   BrainIcon,
@@ -4495,6 +4496,7 @@ interface UserMessageContextRenderContext {
   attachment: ChatImageAttachment | ChatFileAttachment | null;
   resolvedTheme: "light" | "dark";
   copyMarkdown: string;
+  threadRef: ScopedThreadRef | null;
   onExpandImage: (image: ChatImageAttachment) => void;
   onExpandVideo: (file: ChatFileAttachment) => void;
   onOpenFile: (file: ChatFileAttachment) => void;
@@ -4550,6 +4552,20 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
       render: (record, context) =>
         record.kind === "thread" ? (
           <ThreadContextChip record={record} copyMarkdown={context.copyMarkdown} />
+        ) : (
+          <UnavailableUserMessageContextChip {...context} />
+        ),
+    },
+    {
+      kind: "tms-entity",
+      canRender: (record) => record.kind === "tms-entity",
+      render: (record, context) =>
+        record.kind === "tms-entity" ? (
+          <TmsEntityChip
+            record={record}
+            threadRef={context.threadRef}
+            copyMarkdown={context.copyMarkdown}
+          />
         ) : (
           <UnavailableUserMessageContextChip {...context} />
         ),
@@ -4734,7 +4750,7 @@ function UserMessageContextReferenceChip(props: {
   onExpandVideo: (file: ChatFileAttachment) => void;
   onOpenFile: (file: ChatFileAttachment) => void;
 }) {
-  const { resolvedTheme } = use(TimelineRowCtx);
+  const { resolvedTheme, threadRef } = use(TimelineRowCtx);
   const copyMarkdown = formatComposerContextReference({
     kind: props.reference.kind,
     contextId: props.reference.contextId as ComposerContextId,
@@ -4746,6 +4762,7 @@ function UserMessageContextReferenceChip(props: {
     attachment: props.attachment,
     resolvedTheme,
     copyMarkdown,
+    threadRef,
     onExpandImage: props.onExpandImage,
     onExpandVideo: props.onExpandVideo,
     onOpenFile: props.onOpenFile,

@@ -370,6 +370,19 @@ export function ComposerContextSheet(props: {
                     ) : null}
                   </View>
                 ) : null}
+                {record.kind === "tms-entity" ? (
+                  <View className="gap-3">
+                    <ContextField
+                      label={`TMS ${record.entity.type}`}
+                      value={record.entity.id}
+                      code
+                    />
+                    <ContextField
+                      label={`When commented · ${record.snapshot.status} · ${record.snapshot.level}`}
+                      value={record.snapshot.wording}
+                    />
+                  </View>
+                ) : null}
                 {record.kind === "skill" ? (
                   <View className="gap-3">
                     <ContextField label="Skill" value={record.name} />
