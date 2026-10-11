@@ -7,6 +7,7 @@ import {
   currentIdOf,
   indexTree,
   layoutCausal,
+  levelsOf,
   outlineRows,
   statusOf,
 } from "./causalTree";
@@ -30,10 +31,22 @@ const decision = (
   ...fields,
 });
 
+/** What tms declares today; the panel reads levels only from here. */
+const VOCABULARY: TmsTree["vocabulary"] = {
+  levels: [
+    { level: "goal", letter: "G", accepted: true },
+    { level: "requirement", letter: "R", accepted: true },
+    { level: "concept", letter: "C", accepted: false },
+    { level: "law", letter: "L", accepted: false },
+  ],
+  kinds: ["thing", "relationship", "property"],
+};
+
 const tree = (
   nodes: ReadonlyArray<TmsDecision>,
   ended: ReadonlyArray<TmsDecision> = [],
 ): TmsTree => ({
+  vocabulary: VOCABULARY,
   nodes,
   ended,
   quiver: { nodes: [], edges: [] },
@@ -55,17 +68,37 @@ const sample = tree(
 );
 
 describe("statusOf", () => {
+  const levels = levelsOf(tree([]));
+
   it("names each standing state the way tms does", () => {
-    expect(statusOf(decision("R", "requirement", { ended: { by: null, reason: "x" } }))).toEqual({
-      label: "ended",
-      tone: "error",
-    });
-    expect(statusOf(decision("R", "requirement", { accepted: false })).label).toBe(
+    expect(
+      statusOf(decision("R", "requirement", { ended: { by: null, reason: "x" } }), levels),
+    ).toEqual({ label: "ended", tone: "error" });
+    expect(statusOf(decision("R", "requirement", { accepted: false }), levels).label).toBe(
       "awaits acceptance",
     );
-    expect(statusOf(decision("C", "concept", { accepted: false })).label).toBe("stands");
-    expect(statusOf(decision("L", "law", { stands: false })).label).toBe("unsupported");
-    expect(statusOf(decision("G", "goal")).label).toBe("accepted");
+    expect(statusOf(decision("C", "concept", { accepted: false }), levels).label).toBe("stands");
+    expect(statusOf(decision("L", "law", { stands: false }), levels).label).toBe("unsupported");
+    expect(statusOf(decision("G", "goal"), levels).label).toBe("accepted");
+  });
+
+  it("takes which levels the developer accepts, and their order, from the vocabulary alone", () => {
+    const custom = levelsOf({
+      ...tree([]),
+      vocabulary: {
+        levels: [
+          { level: "mission", letter: "M", accepted: true },
+          { level: "rule", letter: "U", accepted: false },
+        ],
+        kinds: [],
+      },
+    });
+
+    expect(statusOf(decision("M1", "mission", { accepted: false }), custom).label).toBe(
+      "awaits acceptance",
+    );
+    expect(statusOf(decision("U1", "rule", { accepted: false }), custom).label).toBe("stands");
+    expect(custom.get("rule")).toEqual({ rank: 1, letter: "U", accepted: false });
   });
 });
 

@@ -6,6 +6,7 @@ import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 
 import type { OutlineRow } from "./causalTree";
+import type { TmsLevels } from "./causalTree";
 import { LevelChip, StatusBadge } from "./TmsLevel";
 
 const INDENT_PX = 16;
@@ -13,6 +14,7 @@ const INDENT_PX = 16;
 /** One decision as a selectable row: level, id, wording, then its status. */
 export function TmsDecisionRow(props: {
   decision: TmsDecision;
+  levels: TmsLevels;
   selected: boolean;
   dimmed: boolean;
   depth?: number;
@@ -45,7 +47,7 @@ export function TmsDecisionRow(props: {
       onMouseLeave={() => props.onHover(null)}
     >
       <span className="flex w-5 shrink-0 justify-center">{props.twisty}</span>
-      <LevelChip level={decision.level} />
+      <LevelChip level={decision.level} levels={props.levels} />
       <span className="shrink-0 font-mono text-muted-foreground text-xs">{decision.id}</span>
       <span
         className={cn(
@@ -63,7 +65,7 @@ export function TmsDecisionRow(props: {
           ⌗{decision.code.length}
         </span>
       ) : null}
-      <StatusBadge decision={decision} />
+      <StatusBadge decision={decision} levels={props.levels} />
     </div>
   );
 }
@@ -71,6 +73,7 @@ export function TmsDecisionRow(props: {
 /** The causal tree as an indented outline. */
 export function TmsOutline(props: {
   rows: ReadonlyArray<OutlineRow>;
+  levels: TmsLevels;
   selectedId: string | null;
   hoveredId: string | null;
   onSelect: (id: string) => void;
@@ -85,6 +88,7 @@ export function TmsOutline(props: {
         <TmsDecisionRow
           key={row.decision.id}
           decision={row.decision}
+          levels={props.levels}
           depth={row.depth}
           selected={row.decision.id === props.selectedId}
           dimmed={hovering && row.decision.id !== props.hoveredId}

@@ -6,12 +6,30 @@ import { ProjectId, ThreadId } from "./baseSchemas.ts";
  * A TMS ("tree of causes") project as `tms change show --json` describes it, read by the
  * environment that owns the workspace. T3 only reads it; the tms CLI stays the authority.
  */
-export const TmsDecisionLevel = Schema.Literals(["goal", "requirement", "concept", "law"]);
-export type TmsDecisionLevel = typeof TmsDecisionLevel.Type;
+/** The `show --json` shape this build reads; tms raises it whenever that shape changes. */
+export const TMS_SNAPSHOT_FORMAT = 1;
+
+/**
+ * One decision level as tms declares it: levels come in order from goal to law, each with the
+ * letter its ids carry and whether the developer accepts decisions of that level. T3 hard-codes
+ * no level: every level and kind a snapshot uses is one its own vocabulary declares.
+ */
+const TmsLevel = Schema.Struct({
+  level: Schema.String,
+  letter: Schema.String,
+  accepted: Schema.Boolean,
+});
+
+export const TmsVocabulary = Schema.Struct({
+  levels: Schema.NonEmptyArray(TmsLevel),
+  kinds: Schema.Array(Schema.String),
+});
+export type TmsVocabulary = typeof TmsVocabulary.Type;
 
 export const TmsDecision = Schema.Struct({
   id: Schema.String,
-  level: TmsDecisionLevel,
+  /** One of the snapshot's `vocabulary.levels`. */
+  level: Schema.String,
   wording: Schema.String,
   /** A concept's ontology kind: thing, property or relationship. */
   kind: Schema.NullOr(Schema.String),
@@ -46,6 +64,7 @@ export const TmsQuiverEdge = Schema.Struct({
 export type TmsQuiverEdge = typeof TmsQuiverEdge.Type;
 
 export const TmsTree = Schema.Struct({
+  vocabulary: TmsVocabulary,
   /** Decisions that have not ended. */
   nodes: Schema.Array(TmsDecision),
   /** Decisions that were replaced or withdrawn. */
@@ -56,6 +75,22 @@ export const TmsTree = Schema.Struct({
   }),
 });
 export type TmsTree = typeof TmsTree.Type;
+
+/** The first decision whose level or kind the vocabulary does not declare, if any. */
+export const undeclaredIn = (
+  vocabulary: TmsVocabulary,
+  decisions: ReadonlyArray<TmsDecision>,
+): string | null => {
+  const levels = new Set(vocabulary.levels.map((level) => level.level));
+  const kinds = new Set(vocabulary.kinds);
+  const odd = decisions.find(
+    (decision) =>
+      !levels.has(decision.level) || (decision.kind !== null && !kinds.has(decision.kind)),
+  );
+  return odd === undefined
+    ? null
+    : `${odd.id} (${odd.level}${odd.kind === null ? "" : `, ${odd.kind}`})`;
+};
 
 export const TmsLive = Schema.Struct({
   /** The change the checkout selected, or its only open change. */

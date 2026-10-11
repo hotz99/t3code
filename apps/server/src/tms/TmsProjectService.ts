@@ -15,15 +15,20 @@ import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
+import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 
 import {
+  TMS_SNAPSHOT_FORMAT,
   TmsDecision,
   TmsProjectLookupError,
   TmsQuiverEdge,
   TmsQuiverNode,
+  TmsVocabulary,
+  undeclaredIn,
   type TmsProjectState,
+  type TmsTree,
   type TmsProjectSubscriptionInput,
 } from "@t3tools/contracts";
 
@@ -38,15 +43,53 @@ const MAX_MESSAGE_LENGTH = 4_000;
 const LAUNCHERS = ["bin/tms", ".claude/bin/tms"] as const;
 
 /** What `tms change show --json` prints. */
-const decodeChangeShow = Schema.decodeUnknownEffect(
+const decodeChangeShow = Schema.decodeUnknownResult(
   Schema.fromJsonString(
     Schema.Struct({
+      format: Schema.Number,
+      vocabulary: Schema.Unknown,
       nodes: Schema.Array(TmsQuiverNode),
       edges: Schema.Array(TmsQuiverEdge),
       decisions: Schema.Array(TmsDecision),
     }),
   ),
 );
+
+const decodeVocabulary = Schema.decodeUnknownResult(TmsVocabulary);
+
+/**
+ * The tree `tms change show --json` describes, or why it cannot be read. A snapshot of another
+ * format, or with a level or kind its own vocabulary does not declare, is refused by name: the
+ * panel never shows a decision it does not know.
+ */
+export const treeOfShowOutput = (stdout: string): Result.Result<TmsTree, string> => {
+  const shown = decodeChangeShow(stdout);
+  if (Result.isFailure(shown)) {
+    return Result.fail("tms printed output this version of T3 Code cannot read.");
+  }
+  const { format, decisions, nodes, edges } = shown.success;
+  if (format !== TMS_SNAPSHOT_FORMAT) {
+    return Result.fail(
+      `tms emits snapshot format ${String(format)}; this T3 Code build reads format ${String(TMS_SNAPSHOT_FORMAT)}. Update the fork to the claude-setup it runs.`,
+    );
+  }
+  const vocabulary = decodeVocabulary(shown.success.vocabulary);
+  if (Result.isFailure(vocabulary)) {
+    return Result.fail("tms printed a vocabulary this version of T3 Code cannot read.");
+  }
+  const undeclared = undeclaredIn(vocabulary.success, decisions);
+  if (undeclared !== null) {
+    return Result.fail(
+      `tms emitted a decision its own vocabulary does not declare: ${undeclared}.`,
+    );
+  }
+  return Result.succeed({
+    vocabulary: vocabulary.success,
+    nodes: decisions.filter((decision) => decision.ended === null),
+    ended: decisions.filter((decision) => decision.ended !== null),
+    quiver: { nodes, edges },
+  });
+};
 
 /** When the checkout is probed for changes; tests drive it by hand. */
 export class TmsPollTicks extends Context.Reference<Stream.Stream<void>>(
@@ -231,18 +274,11 @@ const make = Effect.gen(function* () {
     if (output.code !== 0) {
       return failed(root, output.stderr.trim() || `tms exited with code ${String(output.code)}.`);
     }
-    const shown = yield* decodeChangeShow(output.stdout).pipe(Effect.option);
-    if (Option.isNone(shown)) {
-      return failed(root, "tms printed output this version of T3 Code cannot read.");
-    }
-    const { decisions, nodes, edges } = shown.value;
+    const tree = treeOfShowOutput(output.stdout);
+    if (Result.isFailure(tree)) return failed(root, tree.failure);
     const state: TmsProjectState = {
       _tag: "snapshot",
-      tree: {
-        nodes: decisions.filter((decision) => decision.ended === null),
-        ended: decisions.filter((decision) => decision.ended !== null),
-        quiver: { nodes, edges },
-      },
+      tree: tree.success,
       live: { change: current.change, entry, root },
     };
     return {

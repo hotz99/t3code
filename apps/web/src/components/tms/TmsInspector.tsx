@@ -79,9 +79,9 @@ export function TmsInspector(props: {
   return (
     <div className="flex flex-col gap-3 p-3">
       <header className="flex flex-wrap items-center gap-2">
-        <LevelChip level={decision.level} />
+        <LevelChip level={decision.level} levels={props.index.levels} />
         <span className="font-mono text-sm">{decision.id}</span>
-        <StatusBadge decision={decision} />
+        <StatusBadge decision={decision} levels={props.index.levels} />
       </header>
       <p className="text-sm leading-relaxed">{decision.wording}</p>
       {decision.kind ? (

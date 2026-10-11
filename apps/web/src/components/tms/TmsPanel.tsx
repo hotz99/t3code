@@ -23,7 +23,7 @@ import { chainOf, indexTree, layoutCausal, outlineRows } from "./causalTree";
 import { TmsCausalGraph } from "./TmsCausalGraph";
 import { TmsCommentBox, TmsCommentList, useTmsCommentSender } from "./TmsComments";
 import { TmsInspector } from "./TmsInspector";
-import { LEVELS, LevelChip } from "./TmsLevel";
+import { LevelChip } from "./TmsLevel";
 import { TmsDecisionRow, TmsOutline } from "./TmsOutline";
 
 type TreeMode = "graph" | "outline";
@@ -220,14 +220,14 @@ function TmsWorkbench(props: {
         {hovered ? (
           // The hovered decision's wording stands in for the legend while the pointer is on it.
           <span className="flex min-w-0 flex-1 items-center gap-1.5">
-            <LevelChip level={hovered.level} />
+            <LevelChip level={hovered.level} levels={index.levels} />
             <span className="shrink-0 font-mono">{hovered.id}</span>
             <span className="truncate text-foreground">{hovered.wording}</span>
           </span>
         ) : (
-          LEVELS.map((level) => (
+          tree.vocabulary.levels.map(({ level }) => (
             <span key={level} className="flex items-center gap-1">
-              <LevelChip level={level} />
+              <LevelChip level={level} levels={index.levels} />
               {level}
             </span>
           ))
@@ -254,6 +254,7 @@ function TmsWorkbench(props: {
           ) : (
             <TmsOutline
               rows={rows}
+              levels={index.levels}
               selectedId={selectedId}
               hoveredId={hoveredId}
               onSelect={select}
@@ -270,6 +271,7 @@ function TmsWorkbench(props: {
                 <TmsDecisionRow
                   key={decision.id}
                   decision={decision}
+                  levels={index.levels}
                   selected={decision.id === selectedId}
                   dimmed={hoveringEnded && decision.id !== hoveredId}
                   onSelect={select}

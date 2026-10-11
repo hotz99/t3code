@@ -22,7 +22,7 @@ const threadId = ThreadId.make("thread-1");
 
 const decision = (fields: {
   readonly id: string;
-  readonly level: "goal" | "requirement" | "concept" | "law";
+  readonly level: string;
   readonly cause?: string | null;
   readonly ended?: { readonly by: string | null; readonly reason: string } | null;
 }) => ({
@@ -39,8 +39,25 @@ const decision = (fields: {
   ended: fields.ended ?? null,
 });
 
-const showOutput = (extra: ReadonlyArray<ReturnType<typeof decision>> = []) =>
+const VOCABULARY = {
+  levels: [
+    { level: "goal", letter: "G", accepted: true },
+    { level: "requirement", letter: "R", accepted: true },
+    { level: "concept", letter: "C", accepted: false },
+    { level: "law", letter: "L", accepted: false },
+  ],
+  kinds: ["thing", "relationship", "property"],
+};
+
+const showOutput = (
+  extra: ReadonlyArray<ReturnType<typeof decision>> = [],
+  header: { readonly format: number; readonly vocabulary: unknown } = {
+    format: 1,
+    vocabulary: VOCABULARY,
+  },
+) =>
   JSON.stringify({
+    ...header,
     nodes: [{ id: "tms:C1", label: "Decision", kind: "thing", of: null, stands: true }],
     edges: [{ id: "tms:C2", from: "tms:C1", to: "tms:C1", label: "Uses", functional: false }],
     decisions: [
@@ -254,6 +271,37 @@ it.layer(NodeServices.layer)("TmsProjectService", (it) => {
         );
       }),
     );
+
+    it("reads levels only from the snapshot's own vocabulary, and refuses another format or an undeclared level by name", () => {
+      const read = TmsProjectService.treeOfShowOutput(showOutput());
+      expect(read._tag === "Success" && read.success.vocabulary).toEqual(VOCABULARY);
+
+      const custom = TmsProjectService.treeOfShowOutput(
+        showOutput([decision({ id: "tms:M1", level: "mission" })], {
+          format: 1,
+          vocabulary: {
+            ...VOCABULARY,
+            levels: [{ level: "mission", letter: "M", accepted: true }, ...VOCABULARY.levels],
+          },
+        }),
+      );
+      expect(custom._tag).toBe("Success");
+
+      expect(
+        TmsProjectService.treeOfShowOutput(
+          showOutput([decision({ id: "tms:M1", level: "mission" })]),
+        ),
+      ).toMatchObject({
+        _tag: "Failure",
+        failure: "tms emitted a decision its own vocabulary does not declare: tms:M1 (mission).",
+      });
+      const later = TmsProjectService.treeOfShowOutput(
+        showOutput([], { format: 2, vocabulary: VOCABULARY }),
+      );
+      expect(later._tag === "Failure" && later.failure).toMatch(
+        /^tms emits snapshot format 2; this T3 Code build reads format 1\./,
+      );
+    });
 
     it.effect("fails with project-not-found for an unknown project", () =>
       Effect.gen(function* () {

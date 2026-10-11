@@ -12,16 +12,35 @@ export interface TmsStatus {
   readonly tone: "success" | "warning" | "error";
 }
 
-const isDirective = (decision: TmsDecision) =>
-  decision.level === "goal" || decision.level === "requirement";
+/** A level as the snapshot's vocabulary declares it, with its place from goal (0) down. */
+export interface TmsLevelInfo {
+  readonly rank: number;
+  readonly letter: string;
+  readonly accepted: boolean;
+}
 
-export function statusOf(decision: TmsDecision): TmsStatus {
+export type TmsLevels = ReadonlyMap<string, TmsLevelInfo>;
+
+export const levelsOf = (tree: TmsTree): TmsLevels =>
+  new Map(
+    tree.vocabulary.levels.map((level, rank) => [
+      level.level,
+      { rank, letter: level.letter, accepted: level.accepted },
+    ]),
+  );
+
+/** Every level a snapshot uses is declared (the server refuses one that is not). */
+export const levelOf = (levels: TmsLevels, level: string): TmsLevelInfo =>
+  levels.get(level) ?? { rank: levels.size, letter: "?", accepted: false };
+
+export function statusOf(decision: TmsDecision, levels: TmsLevels): TmsStatus {
+  const accepted = levelOf(levels, decision.level).accepted;
   if (decision.ended !== null) return { label: "ended", tone: "error" };
-  if (isDirective(decision) && !decision.accepted) {
+  if (accepted && !decision.accepted) {
     return { label: "awaits acceptance", tone: "warning" };
   }
   if (!decision.stands) return { label: "unsupported", tone: "error" };
-  return { label: isDirective(decision) ? "accepted" : "stands", tone: "success" };
+  return { label: accepted ? "accepted" : "stands", tone: "success" };
 }
 
 export function endingOf(decision: TmsDecision): string | null {
@@ -32,6 +51,8 @@ export function endingOf(decision: TmsDecision): string | null {
 }
 
 export interface CausalIndex {
+  /** The snapshot's levels, goal first. */
+  readonly levels: TmsLevels;
   /** Every decision, ended ones included. */
   readonly byId: ReadonlyMap<string, TmsDecision>;
   /** Standing decisions by the standing cause they rest on. */
@@ -66,10 +87,11 @@ export function indexTree(tree: TmsTree): CausalIndex {
     }
     for (const used of decision.uses) push(usedBy, used, decision.id);
   }
+  const levels = levelsOf(tree);
   const goalsFirst = roots
-    .filter((decision) => decision.level === "goal")
-    .concat(roots.filter((decision) => decision.level !== "goal"));
-  return { byId, children, usedBy, roots: goalsFirst };
+    .filter((decision) => levelOf(levels, decision.level).rank === 0)
+    .concat(roots.filter((decision) => levelOf(levels, decision.level).rank !== 0));
+  return { levels, byId, children, usedBy, roots: goalsFirst };
 }
 
 export function childrenOf(index: CausalIndex, id: string): ReadonlyArray<TmsDecision> {

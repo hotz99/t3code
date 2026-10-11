@@ -6,11 +6,12 @@ import {
   CAUSAL_METRICS,
   chainOf,
   childrenOf,
+  levelOf,
   statusOf,
   type CausalIndex,
   type CausalLayout,
 } from "./causalTree";
-import { LEVEL_FILL, LEVEL_LETTER, shortIdOf } from "./TmsLevel";
+import { levelFill, shortIdOf } from "./TmsLevel";
 
 const { boxWidth, boxHeight } = CAUSAL_METRICS;
 const TEXT_BASELINE = 14;
@@ -78,7 +79,7 @@ export function TmsCausalGraph(props: {
       {layout.boxes.map((box) => {
         const decision = index.byId.get(box.id);
         if (!decision) return null;
-        const status = statusOf(decision);
+        const status = statusOf(decision, index.levels);
         const selected = box.id === selectedId;
         const canToggle = childrenOf(index, box.id).length > 0;
         const trailing =
@@ -121,14 +122,19 @@ export function TmsCausalGraph(props: {
                       : "stroke-border stroke-1",
               )}
             />
-            <rect width={18} height={boxHeight} rx={4} className={LEVEL_FILL[decision.level]} />
+            <rect
+              width={18}
+              height={boxHeight}
+              rx={4}
+              className={levelFill(index.levels, decision.level)}
+            />
             <text
               x={9}
               y={TEXT_BASELINE}
               textAnchor="middle"
               className="fill-background font-mono text-2xs font-semibold"
             >
-              {LEVEL_LETTER[decision.level]}
+              {levelOf(index.levels, decision.level).letter}
             </text>
             <text x={ID_START} y={TEXT_BASELINE} className="fill-foreground font-mono text-2xs">
               {clipId(box.id, trailing)}
