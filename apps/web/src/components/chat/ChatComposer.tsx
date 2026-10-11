@@ -3401,6 +3401,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             void importAttachmentRecord(record, localId, sourceEnvironmentId);
             break;
           }
+          // A kind with no draft slot (tms-entity among them) keeps its link in the text but
+          // not its record.
           default:
             break;
         }
