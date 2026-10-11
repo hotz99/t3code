@@ -156,6 +156,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.mcpAppsReadResource]: "provider",
   [WS_METHODS.subscribeVcsStatus]: "vcs",
   [WS_METHODS.subscribeWorktreeSetup]: "vcs",
+  [WS_METHODS.tmsSubscribeProject]: "tms",
   [WS_METHODS.worktreeSetupCancel]: "vcs",
   [WS_METHODS.subscribeResourceTelemetry]: "server",
   [WS_METHODS.vcsRefreshStatus]: "vcs",

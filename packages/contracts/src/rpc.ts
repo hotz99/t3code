@@ -142,6 +142,7 @@ import {
   VcsStatusResult,
   VcsStatusStreamEvent,
 } from "./git.ts";
+import { TmsProjectLookupError, TmsProjectState, TmsProjectSubscriptionInput } from "./tms.ts";
 import {
   ReviewDiffFileContentsInput,
   ReviewDiffFileContentsResult,
@@ -581,6 +582,9 @@ export const WS_METHODS = {
   subscribeAuthAccess: "subscribeAuthAccess",
   subscribeBackgroundPolicy: "subscribeBackgroundPolicy",
   subscribeResourceTelemetry: "subscribeResourceTelemetry",
+
+  // TMS (tree of causes) projects, read-only
+  tmsSubscribeProject: "tms.subscribeProject",
 } as const;
 
 const WsServerUpsertKeybindingRpc = Rpc.make(WS_METHODS.serverUpsertKeybinding, {
@@ -1337,6 +1341,13 @@ const WsSubscribeVcsStatusRpc = Rpc.make(WS_METHODS.subscribeVcsStatus, {
   stream: true,
 });
 
+const WsTmsSubscribeProjectRpc = Rpc.make(WS_METHODS.tmsSubscribeProject, {
+  payload: TmsProjectSubscriptionInput,
+  success: TmsProjectState,
+  error: Schema.Union([TmsProjectLookupError, EnvironmentAuthorizationError]),
+  stream: true,
+});
+
 const WsVcsPullRpc = Rpc.make(WS_METHODS.vcsPull, {
   payload: VcsPullInput,
   success: VcsPullResult,
@@ -1986,6 +1997,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsMcpAppsUpdateModelContextRpc,
   WsProviderUploadFeedbackRpc,
   WsSubscribeVcsStatusRpc,
+  WsTmsSubscribeProjectRpc,
   WsSubscribeWorktreeSetupRpc,
   WsWorktreeSetupCancelRpc,
   WsVcsPullRpc,
