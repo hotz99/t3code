@@ -194,6 +194,9 @@ describe("ComposerContextRecord", () => {
     expect(Option.isNone(decodeRecord({ ...tms, revision: "" }))).toBe(true);
     expect(Option.isNone(decodeRecord({ ...tms, entity: { ...tms.entity, id: " " } }))).toBe(true);
     expect(Option.isNone(decodeRecord({ ...tms, entity: { type: "run", id: "r1" } }))).toBe(true);
+    for (const type of ["thing", "property", "relationship"]) {
+      expect(Option.isSome(decodeRecord({ ...tms, entity: { type, id: "tms:C12" } }))).toBe(true);
+    }
   });
 
   it("rejects bad ids and versions", () => {

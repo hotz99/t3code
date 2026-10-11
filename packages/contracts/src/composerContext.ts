@@ -236,9 +236,9 @@ export const ThreadContextRecord = Schema.Struct({
 });
 export type ThreadContextRecord = typeof ThreadContextRecord.Type;
 
-/** The TMS entity types a comment can point at. Later kinds (ontology entities, workflow
-    runs and steps, backlog items) extend this list and the snapshot. */
-const TMS_ENTITY_TYPES = ["decision"] as const;
+/** The TMS entity types a comment can point at: a decision in the tree, or one drawn in the
+    ontology. Later kinds (workflow runs and steps, backlog items) extend this list. */
+const TMS_ENTITY_TYPES = ["decision", "thing", "property", "relationship"] as const;
 
 /** A TMS entity as the user saw it when commenting; levels and statuses are opaque strings. */
 export const TmsEntitySnapshot = Schema.Struct({
