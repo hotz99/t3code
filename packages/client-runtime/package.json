@@ -187,6 +187,10 @@
       "types": "./src/state/preview.ts",
       "default": "./src/state/preview.ts"
     },
+    "./state/tms": {
+      "types": "./src/state/tms.ts",
+      "default": "./src/state/tms.ts"
+    },
     "./state/projects": {
       "types": "./src/state/projects.ts",
       "default": "./src/state/projects.ts"

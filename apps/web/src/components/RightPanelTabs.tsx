@@ -35,6 +35,7 @@ import {
   Globe2,
   Plus,
   TerminalSquare,
+  Workflow,
 } from "lucide-react";
 import { Volume2, VolumeOff } from "lucide";
 import {
@@ -143,6 +144,8 @@ interface RightPanelTabsProps {
   onAddPullRequest: () => void;
   onAddPullRequests: () => void;
   onAddDevice: () => void;
+  /** Offers the TMS tree of causes; left out where no project is in view. */
+  onAddTms?: (() => void) | undefined;
   browserAvailable: boolean;
   terminalAvailable: boolean;
   diffAvailable: boolean;
@@ -179,6 +182,21 @@ const SURFACE_DISABLED_REASONS = {
   pullRequests: "No linked pull requests are available for this thread.",
   device: "Devices are only available from a thread.",
 } as const;
+
+/** The TMS tree of causes, offered wherever a project is in view. */
+const tmsSurfaceActions = (onAddTms: (() => void) | undefined) =>
+  onAddTms
+    ? [
+        {
+          label: "Tree of causes",
+          icon: Workflow,
+          shortcut: "C",
+          available: true,
+          disabledReason: "",
+          onClick: onAddTms,
+        },
+      ]
+    : [];
 
 /** Overlays that must win over the launcher's letter shortcuts. */
 const LAUNCHER_SHORTCUT_BLOCKING_LAYERS = [
@@ -341,6 +359,7 @@ function RightPanelEmptyState(props: {
   onAddPullRequest: () => void;
   onAddPullRequests: () => void;
   onAddDevice: () => void;
+  onAddTms: (() => void) | undefined;
   browserAvailable: boolean;
   terminalAvailable: boolean;
   diffAvailable: boolean;
@@ -410,6 +429,7 @@ function RightPanelEmptyState(props: {
       disabledReason: SURFACE_UNAVAILABLE_HINTS.device,
       onClick: props.onAddDevice,
     },
+    ...tmsSurfaceActions(props.onAddTms),
   ] as const;
 
   type SurfaceAction = (typeof actions)[number];
@@ -620,6 +640,8 @@ function surfaceTitle(
       return "Pull requests";
     case "device":
       return surface.title ?? surface.target?.name ?? "Device";
+    case "tms":
+      return "Tree of causes";
     case "preview": {
       const snapshot = surface.resourceId ? sessions[surface.resourceId] : null;
       if (!snapshot || snapshot.navStatus._tag === "Idle") return "Browser";
@@ -709,6 +731,8 @@ function SurfaceIcon({
       ) : (
         <Smartphone className="size-3 shrink-0" />
       );
+    case "tms":
+      return <Workflow className="size-3 shrink-0" />;
   }
 }
 
@@ -991,6 +1015,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       disabledReason: SURFACE_DISABLED_REASONS.device,
       onClick: props.onAddDevice,
     },
+    ...tmsSurfaceActions(props.onAddTms),
   ] as const;
 
   const handleAddSurfaceMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -1483,6 +1508,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             onAddPullRequest={props.onAddPullRequest}
             onAddPullRequests={props.onAddPullRequests}
             onAddDevice={props.onAddDevice}
+            onAddTms={props.onAddTms}
             browserAvailable={props.browserAvailable}
             terminalAvailable={props.terminalAvailable}
             diffAvailable={props.diffAvailable}
