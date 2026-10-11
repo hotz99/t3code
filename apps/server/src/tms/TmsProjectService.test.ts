@@ -303,6 +303,26 @@ it.layer(NodeServices.layer)("TmsProjectService", (it) => {
       );
     });
 
+    it("reads a relationship whose endpoint concept declares no kind", () => {
+      const shown = JSON.parse(showOutput());
+      const read = TmsProjectService.treeOfShowOutput(
+        JSON.stringify({
+          ...shown,
+          nodes: [
+            ...shown.nodes,
+            { id: "tms:C9", label: "Other", kind: null, of: null, stands: true },
+          ],
+          edges: [
+            ...shown.edges,
+            { id: "tms:C3", from: "tms:C1", to: "tms:C9", label: "Uses", functional: false },
+          ],
+        }),
+      );
+      expect(read._tag === "Success" && read.success.quiver.nodes.map((node) => node.kind)).toEqual(
+        ["thing", null],
+      );
+    });
+
     it.effect("fails with project-not-found for an unknown project", () =>
       Effect.gen(function* () {
         const { root } = yield* makeTmsCheckout("tms:R1");

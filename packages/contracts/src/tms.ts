@@ -48,7 +48,8 @@ export type TmsDecision = typeof TmsDecision.Type;
 export const TmsQuiverNode = Schema.Struct({
   id: Schema.String,
   label: Schema.String,
-  kind: Schema.String,
+  /** Null for a relationship's endpoint whose concept declares no kind. */
+  kind: Schema.NullOr(Schema.String),
   of: Schema.NullOr(Schema.String),
   stands: Schema.Boolean,
 });
