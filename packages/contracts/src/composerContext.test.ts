@@ -120,6 +120,19 @@ const knownRecords: Record<(typeof COMPOSER_CONTEXT_KINDS)[number], Record<strin
     threadId: "thread-1",
     title: "Fix login flow",
   },
+  "tms-entity": {
+    ...base,
+    kind: "tms-entity",
+    label: "tms:R19",
+    entity: { type: "decision", id: "tms:R19" },
+    snapshot: {
+      level: "requirement",
+      wording: "I can write a comment on a decision in the tree.",
+      status: "accepted",
+      cause: "tms:G2",
+    },
+    revision: "d-1a2b3c4d",
+  },
 };
 
 describe("ComposerContextRecord", () => {
@@ -163,6 +176,24 @@ describe("ComposerContextRecord", () => {
         ],
       }).records,
     ).toEqual([{ ...knownRecords.skill, contextId: "ctx_skill" }]);
+  });
+
+  it("bounds a TMS entity record and keeps its entity type closed", () => {
+    const tms = knownRecords["tms-entity"] as {
+      snapshot: Record<string, unknown>;
+      entity: Record<string, unknown>;
+    };
+    const withSnapshot = (snapshot: Record<string, unknown>) =>
+      decodeRecord({ ...tms, snapshot: { ...tms.snapshot, ...snapshot } });
+    expect(Option.isSome(withSnapshot({ wording: "x".repeat(8_000), cause: null }))).toBe(true);
+    expect(Option.isNone(withSnapshot({ wording: "x".repeat(8_001) }))).toBe(true);
+    expect(Option.isNone(withSnapshot({ level: "x".repeat(65) }))).toBe(true);
+    expect(Option.isNone(withSnapshot({ status: "x".repeat(65) }))).toBe(true);
+    expect(Option.isNone(withSnapshot({ cause: "x".repeat(256) }))).toBe(true);
+    expect(Option.isNone(decodeRecord({ ...tms, revision: "x".repeat(129) }))).toBe(true);
+    expect(Option.isNone(decodeRecord({ ...tms, revision: "" }))).toBe(true);
+    expect(Option.isNone(decodeRecord({ ...tms, entity: { ...tms.entity, id: " " } }))).toBe(true);
+    expect(Option.isNone(decodeRecord({ ...tms, entity: { type: "run", id: "r1" } }))).toBe(true);
   });
 
   it("rejects bad ids and versions", () => {

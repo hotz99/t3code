@@ -28,6 +28,7 @@ export const COMPOSER_CONTEXT_KINDS = [
   "mention",
   "skill",
   "thread",
+  "tms-entity",
 ] as const;
 export type KnownComposerContextKind = (typeof COMPOSER_CONTEXT_KINDS)[number];
 
@@ -45,6 +46,7 @@ const COMPOSER_CONTEXT_ELEMENT_STYLES_MAX_CHARS = 8_000;
 export const COMPOSER_CONTEXT_REVIEW_TEXT_MAX_CHARS = 16_000;
 export const COMPOSER_CONTEXT_REVIEW_DIFF_MAX_CHARS = 32_000;
 const COMPOSER_CONTEXT_PREVIEW_COMMENT_MAX_CHARS = 8_000;
+const COMPOSER_CONTEXT_TMS_WORDING_MAX_CHARS = 8_000;
 
 /** Durable identity of one payload. Shared by every chip that points at it. */
 export const ComposerContextId = TrimmedNonEmptyString.check(
@@ -234,6 +236,36 @@ export const ThreadContextRecord = Schema.Struct({
 });
 export type ThreadContextRecord = typeof ThreadContextRecord.Type;
 
+/** The TMS entity types a comment can point at. Later kinds (ontology entities, workflow
+    runs and steps, backlog items) extend this list and the snapshot. */
+const TMS_ENTITY_TYPES = ["decision"] as const;
+
+/** A TMS entity as the user saw it when commenting; levels and statuses are opaque strings. */
+export const TmsEntitySnapshot = Schema.Struct({
+  level: BoundedString(64),
+  wording: BoundedString(COMPOSER_CONTEXT_TMS_WORDING_MAX_CHARS),
+  status: BoundedString(64),
+  cause: Schema.NullOr(BoundedString(255)),
+});
+export type TmsEntitySnapshot = typeof TmsEntitySnapshot.Type;
+
+/**
+ * A comment's subject in a TMS project: the entity's id and the state it had when the user wrote
+ * the comment. `revision` identifies that state so a client can tell when the entity moved on.
+ * The record is read-only context: the agent changes the tree only through its tms commands.
+ */
+export const TmsEntityContextRecord = Schema.Struct({
+  ...recordBase,
+  kind: Schema.Literal("tms-entity"),
+  entity: Schema.Struct({
+    type: Schema.Literals(TMS_ENTITY_TYPES),
+    id: TrimmedNonEmptyString.check(Schema.isMaxLength(255)),
+  }),
+  snapshot: TmsEntitySnapshot,
+  revision: TrimmedNonEmptyString.check(Schema.isMaxLength(128)),
+});
+export type TmsEntityContextRecord = typeof TmsEntityContextRecord.Type;
+
 const isJson = Schema.is(Schema.Json);
 
 /**
@@ -271,6 +303,7 @@ export const KnownComposerContextRecord = Schema.Union([
   MentionContextRecord,
   SkillContextRecord,
   ThreadContextRecord,
+  TmsEntityContextRecord,
 ]);
 export type KnownComposerContextRecord = typeof KnownComposerContextRecord.Type;
 
