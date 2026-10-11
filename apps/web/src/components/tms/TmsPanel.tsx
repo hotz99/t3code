@@ -287,8 +287,10 @@ function TmsWorkbench(props: {
           className="max-h-[45%] shrink-0 overflow-y-auto border-t border-border/60 @3xl/tms:max-h-none @3xl/tms:w-80 @3xl/tms:border-t-0 @3xl/tms:border-l"
         >
           <TmsInspector index={index} id={selectedId} onGo={go} onHover={setHoveredId} />
-          {selectedDecision ? <TmsCommentBox decision={selectedDecision} sender={sender} /> : null}
-          {sender ? <TmsCommentList sender={sender} live={index.byId} onGo={go} /> : null}
+          {selectedDecision ? (
+            <TmsCommentBox decision={selectedDecision} levels={index.levels} sender={sender} />
+          ) : null}
+          {sender ? <TmsCommentList sender={sender} live={index} onGo={go} /> : null}
         </aside>
       </div>
     </DiffPanelShell>

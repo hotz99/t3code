@@ -3,11 +3,13 @@ import {
   type ComposerContextId,
   type OrchestrationV2ThreadProjection,
   type TmsDecision,
+  type TmsTree,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Schema from "effect/Schema";
 import { describe, expect, it } from "vite-plus/test";
 
+import { indexTree, levelsOf } from "./causalTree";
 import {
   commentMessageText,
   decisionCommentRecord,
@@ -16,6 +18,25 @@ import {
   threadTmsComments,
   type LocalCommentSend,
 } from "./tmsCommentModel";
+
+const VOCABULARY: TmsTree["vocabulary"] = {
+  levels: [
+    { level: "goal", letter: "G", accepted: true },
+    { level: "requirement", letter: "R", accepted: true },
+    { level: "concept", letter: "C", accepted: false },
+    { level: "law", letter: "L", accepted: false },
+  ],
+  kinds: ["thing", "relationship", "property"],
+};
+
+const treeOf = (decisions: ReadonlyArray<TmsDecision>): TmsTree => ({
+  vocabulary: VOCABULARY,
+  nodes: decisions.filter((d) => d.ended === null),
+  ended: decisions.filter((d) => d.ended !== null),
+  quiver: { nodes: [], edges: [] },
+});
+
+const LEVELS = levelsOf(treeOf([]));
 
 type Projection = Pick<OrchestrationV2ThreadProjection, "messages" | "runs">;
 type Message = Projection["messages"][number];
@@ -39,7 +60,7 @@ const decision = (id: string, fields: Partial<TmsDecision> = {}): TmsDecision =>
 const decodeRecord = Schema.decodeUnknownSync(TmsEntityContextRecord);
 const at = (iso: string) => DateTime.makeUnsafe(iso);
 const ctx = (value: string) => value as ComposerContextId;
-const r19 = decisionCommentRecord(decision("tms:R19"), ctx("tms-1"));
+const r19 = decisionCommentRecord(decision("tms:R19"), LEVELS, ctx("tms-1"));
 
 const message = (id: string, fields: Partial<Message> = {}): Message =>
   ({
@@ -78,15 +99,18 @@ describe("decisionCommentRecord", () => {
       cause: "tms:G1",
     });
     expect(decodeRecord(r19)).toEqual(r19);
-    expect(decisionCommentRecord(decision("tms:R19"), ctx("tms-2")).revision).toBe(r19.revision);
+    expect(decisionCommentRecord(decision("tms:R19"), LEVELS, ctx("tms-2")).revision).toBe(
+      r19.revision,
+    );
     expect(
-      decisionCommentRecord(decision("tms:R19", { wording: "other" }), ctx("tms-1")).revision,
+      decisionCommentRecord(decision("tms:R19", { wording: "other" }), LEVELS, ctx("tms-1"))
+        .revision,
     ).not.toBe(r19.revision);
   });
 
   it("names how a decision ended or why it does not stand yet", () => {
     const status = (fields: Partial<TmsDecision>) =>
-      decisionCommentRecord(decision("tms:R1", fields), ctx("c")).snapshot.status;
+      decisionCommentRecord(decision("tms:R1", fields), LEVELS, ctx("c")).snapshot.status;
     expect(status({ ended: { by: "tms:R2", reason: "split" } })).toBe("replaced");
     expect(status({ ended: { by: null, reason: "dropped" } })).toBe("withdrawn");
     expect(status({ accepted: false })).toBe("awaits acceptance");
@@ -190,7 +214,7 @@ describe("threadTmsComments", () => {
 });
 
 describe("thenVsNow", () => {
-  const live = (...decisions: TmsDecision[]) => new Map(decisions.map((d) => [d.id, d]));
+  const live = (...decisions: TmsDecision[]) => indexTree(treeOf(decisions));
 
   it("cannot compare without a live tree", () => {
     expect(thenVsNow(r19, null)).toEqual({ state: "unknown" });

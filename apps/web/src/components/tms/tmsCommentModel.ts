@@ -16,16 +16,16 @@ import {
 } from "@t3tools/shared/composerContextReferences";
 import * as DateTime from "effect/DateTime";
 
-import { statusOf } from "./causalTree";
+import { statusOf, type CausalIndex, type TmsLevels } from "./causalTree";
 
 type Message = OrchestrationV2ThreadProjection["messages"][number];
 type Run = OrchestrationV2ThreadProjection["runs"][number];
 
 /** What the inspector shows for a decision, as the comment keeps it. */
-function decisionSnapshot(decision: TmsDecision): TmsEntitySnapshot {
+function decisionSnapshot(decision: TmsDecision, levels: TmsLevels): TmsEntitySnapshot {
   const status =
     decision.ended === null
-      ? statusOf(decision).label
+      ? statusOf(decision, levels).label
       : decision.ended.by === null
         ? "withdrawn"
         : "replaced";
@@ -53,9 +53,10 @@ function snapshotRevision(id: string, snapshot: TmsEntitySnapshot): string {
 
 export function decisionCommentRecord(
   decision: TmsDecision,
+  levels: TmsLevels,
   contextId: ComposerContextId,
 ): TmsEntityContextRecord {
-  const snapshot = decisionSnapshot(decision);
+  const snapshot = decisionSnapshot(decision, levels);
   return {
     version: 1,
     kind: "tms-entity",
@@ -192,12 +193,12 @@ const SNAPSHOT_FIELDS: ReadonlyArray<SnapshotField> = ["level", "wording", "stat
 /** The commented state against the live decision with the same id, ended ones included. */
 export function thenVsNow(
   record: Pick<TmsEntityContextRecord, "entity" | "snapshot">,
-  live: ReadonlyMap<string, TmsDecision> | null,
+  live: CausalIndex | null,
 ): ThenVsNow {
   if (live === null) return { state: "unknown" };
-  const decision = live.get(record.entity.id);
+  const decision = live.byId.get(record.entity.id);
   if (decision === undefined) return { state: "gone" };
-  const now = decisionSnapshot(decision);
+  const now = decisionSnapshot(decision, live.levels);
   const fields = SNAPSHOT_FIELDS.filter((field) => now[field] !== record.snapshot[field]);
   return fields.length === 0 ? { state: "same" } : { state: "changed", now, fields };
 }

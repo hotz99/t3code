@@ -19,6 +19,7 @@ import { threadEnvironment } from "~/state/threads";
 import { useOrchestrationCommand } from "~/state/use-orchestration-command";
 import { toComposerContextId } from "~/lib/composerContextReferences";
 
+import type { CausalIndex, TmsLevels } from "./causalTree";
 import { useLocalCommentSends, useTmsCommentSendStore } from "./tmsCommentSendStore";
 import {
   commentMessageText,
@@ -133,7 +134,11 @@ export function useTmsCommentSender(
 }
 
 /** The comment input under a decision: queue by default, interrupt only when asked. */
-export function TmsCommentBox(props: { decision: TmsDecision; sender: TmsCommentSender | null }) {
+export function TmsCommentBox(props: {
+  decision: TmsDecision;
+  levels: TmsLevels;
+  sender: TmsCommentSender | null;
+}) {
   const [text, setText] = useState("");
   const { sender, decision } = props;
   if (sender === null) {
@@ -145,7 +150,11 @@ export function TmsCommentBox(props: { decision: TmsDecision; sender: TmsComment
   }
   const submit = (mode: SendMode) => {
     if (text.trim().length === 0) return;
-    const record = decisionCommentRecord(decision, toComposerContextId(`tms-${randomUUID()}`));
+    const record = decisionCommentRecord(
+      decision,
+      props.levels,
+      toComposerContextId(`tms-${randomUUID()}`),
+    );
     sender.send(record, text, mode);
     setText("");
   };
@@ -272,7 +281,7 @@ function SnapshotLines(props: {
 /** The state a comment was written against, and the live one when they differ. */
 export function TmsThenVsNow(props: {
   record: Pick<TmsEntityContextRecord, "entity" | "snapshot">;
-  live: ReadonlyMap<string, TmsDecision> | null;
+  live: CausalIndex | null;
   /** Show the commented state even when nothing changed. */
   alwaysShowThen?: boolean;
 }) {
@@ -304,7 +313,7 @@ export function TmsThenVsNow(props: {
 /** This thread's comments on the tree, newest first, with delivery and then-vs-now. */
 export function TmsCommentList(props: {
   sender: TmsCommentSender;
-  live: ReadonlyMap<string, TmsDecision>;
+  live: CausalIndex;
   onGo: (id: string) => void;
 }) {
   const { comments } = props.sender;

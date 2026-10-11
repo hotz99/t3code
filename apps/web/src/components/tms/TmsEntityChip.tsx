@@ -22,10 +22,7 @@ function TmsEntityDetails(props: { record: TmsEntityContextRecord; threadRef: Sc
         }),
   );
   const state = query.data;
-  const live = useMemo(
-    () => (state?._tag === "snapshot" ? indexTree(state.tree).byId : null),
-    [state],
-  );
+  const live = useMemo(() => (state?._tag === "snapshot" ? indexTree(state.tree) : null), [state]);
   return <TmsThenVsNow record={props.record} live={live} alwaysShowThen />;
 }
 
